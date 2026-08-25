@@ -1,0 +1,1408 @@
+/* BcsMusic renderer 应用层样式：仅放 SPA 特有规则
+   设计令牌（颜色、字体、圆角、阴影）来自 colors_and_type.css */
+
+/* ============ 动画速度倍率（可在设置页常规设置中调节） ============
+   --anim-mult 越小动画越快；1 为默认，0.5 = 2 倍速，2 = 半速
+   所有动画时长均乘以该倍率，统一控制整体节奏 */
+:root { --anim-mult: 1.0; }
+
+/* 软件标志：字母 B 简约黑蓝艺术字
+ * 设计：黑色粗体 (#0a0a1a) 作主体，右侧/底部叠加一抹蓝 (#007aff / #004fad) 渐变高光
+ * 极简无描边、无投影，纯几何块面，呼应科技音乐品牌感 */
+.bcs-logo-b {
+  display: inline-block;
+  font-family: 'Georgia', 'DM Serif Display', 'Times New Roman', serif;
+  font-size: 26px;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  color: transparent;
+  /* 黑蓝色渐变：顶部纯黑 (#0a0a1a) → 中下部冷蓝 (#004fad) → 底部高饱和蓝 (#007aff) */
+  background: linear-gradient(160deg,
+    #0a0a1a 0%,
+    #0a0a1a 42%,
+    #004fad 72%,
+    #007aff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  padding: 0 2px;
+  user-select: none;
+}
+
+/* 无系统标题栏：整个顶栏可拖动移动窗口，仅交互元素不拖动 */
+.app-header { -webkit-app-region: drag; }
+/* 交互元素：按钮、输入框、链接、账号芯片、返回按钮、搜索框容器及其下拉 */
+.app-header button,
+.app-header input,
+.app-header select,
+.app-header #user-chip,
+.app-header #nav-back,
+.app-header a,
+.app-header .search-box,
+.app-header .search-wrap,
+.app-header .search-dropdown,
+.app-header [data-no-drag] { -webkit-app-region: no-drag; }
+
+/* 进度条：从左到右 #43CBFF → #9708CC → #FB016D 渐变 */
+.seek-fill {
+  background: linear-gradient(to right, #43CBFF, #9708CC, #FB016D);
+}
+.seek-bar {
+  background: color-mix(in srgb, #000000 8%, transparent);
+}
+
+/* 音量条：淡蓝色 */
+.volume-fill {
+  background: linear-gradient(to right, #93D4FF, #4FC3F7);
+}
+.volume-bar {
+  background: color-mix(in srgb, #000000 8%, transparent);
+}
+
+/* 播放列表面板：fixed 定位，z-index 高于 now-playing，避免被全屏播放页遮住 */
+.queue-panel {
+  position: fixed;
+  right: 1rem;
+  bottom: 5rem;
+  width: 360px;
+  max-width: 90vw;
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  border-radius: 1rem;
+  background-color: color-mix(in srgb, #ffffff 92%, transparent);
+  backdrop-filter: blur(20px);
+  border: 1px solid color-mix(in srgb, #ffffff 60%, transparent);
+  box-shadow: var(--shadow-2xl, 0 20px 50px -10px rgba(0,0,0,0.25));
+  transform-origin: bottom center;
+}
+/* 打开：从下方滚出 + 淡入（与搜索框风格一致） */
+.queue-panel.opening {
+  animation: queueIn calc(0.2s * var(--anim-mult, 1)) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+/* 关闭：向下滚回 + 淡出 */
+.queue-panel.closing {
+  animation: queueOut calc(0.16s * var(--anim-mult, 1)) cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+@keyframes queueIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes queueOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(16px) scale(0.98); }
+}
+.queue-panel.hidden { display: none; }
+.queue-list::-webkit-scrollbar { width: 6px; }
+.queue-list::-webkit-scrollbar-thumb { background: color-mix(in srgb, #000000 15%, transparent); border-radius: 6px; }
+.queue-item:hover { background: color-mix(in srgb, #000000 5%, transparent); }
+.queue-item.is-current { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+
+/* 「下一首播放」优先队列区块：主色左条作区分，区别于普通队列 */
+.queue-next-section { border-bottom: 1px solid color-mix(in srgb, #000000 8%, transparent); }
+.queue-next-section.hidden { display: none; }
+.queue-next-list::-webkit-scrollbar { width: 6px; }
+.queue-next-list::-webkit-scrollbar-thumb { background: color-mix(in srgb, #000000 15%, transparent); border-radius: 6px; }
+.queue-next-item { border-left: 2px solid var(--primary); }
+.queue-next-item:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ============ 信息中心面板 ============ */
+/* 固定定位在顶栏信息按钮下方，下滚出 + 淡入，与搜索框风格一致 */
+.messages-panel {
+  position: fixed;
+  top: 56px;
+  right: 1rem;
+  width: 340px;
+  max-width: 90vw;
+  max-height: 60vh;
+  z-index: 115;
+  display: flex;
+  flex-direction: column;
+  border-radius: 1rem;
+  background-color: color-mix(in srgb, #ffffff 92%, transparent);
+  backdrop-filter: blur(20px);
+  border: 1px solid color-mix(in srgb, #ffffff 60%, transparent);
+  box-shadow: 0 12px 32px -8px rgba(0,0,0,0.18);
+  transform-origin: top right;
+  overflow: hidden;
+}
+.messages-panel.opening { animation: msgIn calc(0.24s * var(--anim-mult, 1)) cubic-bezier(0.22, 1, 0.36, 1); }
+.messages-panel.closing { animation: msgOut calc(0.22s * var(--anim-mult, 1)) cubic-bezier(0.4, 0, 1, 1) forwards; }
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(-10px) scaleY(0.96); }
+  to   { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+@keyframes msgOut {
+  from { opacity: 1; transform: translateY(0) scaleY(1); }
+  to   { opacity: 0; transform: translateY(-10px) scaleY(0.96); }
+}
+.messages-panel.hidden { display: none; }
+.mp-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, #000000 8%, transparent);
+}
+.mp-title { font-size: 0.875rem; font-weight: 600; color: var(--foreground); flex: 1; }
+.mp-back, .mp-close {
+  border: 0; background: transparent; cursor: pointer;
+  padding: 0.25rem; border-radius: 0.5rem; color: var(--muted-foreground);
+  display: flex; align-items: center;
+}
+.mp-back:hover, .mp-close:hover { background: color-mix(in srgb, #000000 5%, transparent); color: var(--foreground); }
+.mp-body { flex: 1; overflow-y: auto; padding: 0.25rem 0; }
+.mp-body::-webkit-scrollbar { width: 6px; }
+.mp-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, #000000 12%, transparent); border-radius: 6px; }
+.mp-empty { padding: 2rem 1rem; text-align: center; font-size: 0.8rem; color: var(--muted-foreground); }
+.mp-item {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.625rem 1rem; cursor: pointer; position: relative;
+}
+.mp-item:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.mp-avatar {
+  width: 2.25rem; height: 2.25rem; border-radius: 9999px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 600;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary); overflow: hidden;
+}
+.mp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.mp-item-text { flex: 1; min-width: 0; }
+.mp-item-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.mp-item-name { font-size: 0.825rem; font-weight: 500; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-item-time { font-size: 0.65rem; color: var(--muted-foreground); flex-shrink: 0; }
+.mp-item-preview { font-size: 0.72rem; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.125rem; }
+.mp-unread {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  background: var(--destructive); color: #fff;
+  font-size: 0.6rem; font-weight: 600; min-width: 1.1rem; height: 1.1rem;
+  border-radius: 9999px; display: flex; align-items: center; justify-content: center;
+  padding: 0 0.25rem;
+}
+.mp-convo { padding: 0.75rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.mp-msg { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.625rem 0.75rem; border-radius: 0.625rem; background: color-mix(in srgb, #000000 4%, transparent); }
+.mp-msg-text { font-size: 0.8rem; color: var(--foreground); line-height: 1.5; word-break: break-word; }
+.mp-msg-time { font-size: 0.65rem; color: var(--muted-foreground); align-self: flex-end; }
+
+/* ============ 全屏播放页 ============ */
+.now-playing {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background-color: #0a0a0a;
+  color: #fff;
+  overflow: hidden;
+  /* 默认隐藏（用 .hidden 控制） */
+  /* ===== 新增：整页作为拖动区域，点击任意"非交互元素"都能拖动窗口 =====
+   * 交互元素（按钮/输入框/进度条/链接）统一在下面用 no-drag 排除。
+   * 这样用户想要的"拖播放页就能移动窗口"体验一致，
+   * 同时避免"拖动区域挡到顶部按钮"的问题——因为 now-playing 本身是 drag 根，
+   * 而 no-drag 元素（按钮）会接收点击不参与拖动。*/
+  -webkit-app-region: drag;
+  cursor: default;
+}
+/* ===== 交互元素全部排除拖动，用户反馈「拖动区域挡住了」就是因为少了 no-drag =====
+ * 覆盖：np-top-controls 本身 + 内部所有按钮；np-controls（底栏）本身 + 进度条/按钮/链接；
+ *       所有 now-playing 内部通用交互元素。*/
+.now-playing .np-top-controls,
+.now-playing .np-top-controls *,
+.now-playing .np-controls,
+.now-playing .np-controls *,
+.now-playing .np-translation-toggle,
+.now-playing .np-translation-toggle *,
+.now-playing .np-lyric,
+.now-playing .np-lyric *,
+.now-playing .np-cover-wrap,
+.now-playing .np-cover-wrap *,
+.now-playing .np-info *,
+.now-playing button,
+.now-playing a,
+.now-playing input,
+.now-playing select,
+.now-playing textarea,
+.now-playing label,
+.now-playing [data-no-drag] { -webkit-app-region: no-drag; }
+.now-playing.hidden { display: none; }
+/* 拉出动画：滚筒式从底部铺满，整页向上滚入并淡入 */
+.now-playing.opening { animation: npSlideUp calc(0.28s * var(--anim-mult, 1)) cubic-bezier(0.22, 1, 0.36, 1); }
+/* 退出：滚筒式向下滚出并淡出 */
+.now-playing.closing { animation: npSlideDown calc(0.24s * var(--anim-mult, 1)) cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+@keyframes npSlideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes npSlideDown {
+  from { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(100%); opacity: 0; }
+}
+
+/* ============ 流动颜色背景层（不直接显示封面） ============ */
+/* nowplaying.js 从当前封面提取主色，写入 --np-c1 / --np-c2 / --np-c3 */
+.np-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #0a0a0a;
+}
+.np-bg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.7;
+  mix-blend-mode: screen;
+  transition: background 0.8s ease;
+  will-change: transform;
+}
+.np-bg-blob-1 {
+  width: 60vw; height: 60vw;
+  left: -10vw; top: -15vh;
+  background: var(--np-c1, #9708CC);
+  animation: npBlob1 18s ease-in-out infinite alternate;
+}
+.np-bg-blob-2 {
+  width: 55vw; height: 55vw;
+  right: -12vw; top: 5vh;
+  background: var(--np-c2, #43CBFF);
+  animation: npBlob2 22s ease-in-out infinite alternate;
+}
+.np-bg-blob-3 {
+  width: 50vw; height: 50vw;
+  left: 25vw; bottom: -20vh;
+  background: var(--np-c3, #FB016D);
+  animation: npBlob3 26s ease-in-out infinite alternate;
+}
+@keyframes npBlob1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(18vw, 18vh) scale(1.25); }
+}
+@keyframes npBlob2 {
+  0%   { transform: translate(0, 0) scale(1.1); }
+  100% { transform: translate(-16vw, 22vh) scale(0.85); }
+}
+@keyframes npBlob3 {
+  0%   { transform: translate(0, 0) scale(0.9); }
+  100% { transform: translate(-12vw, -22vh) scale(1.3); }
+}
+/* 暗化覆盖层：保证前景文字可读 */
+.np-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.2) 35%, rgba(0,0,0,0.55) 100%);
+  backdrop-filter: blur(2px);
+}
+/* 让所有前景元素都高于背景层 */
+/* 顶部控件 & 翻译按钮 & 底部控件：需要 absolute 定位，排除在通用 relative 规则外 */
+.now-playing > *:not(.np-bg):not(.np-top-controls):not(.np-controls):not(.np-translation-toggle) {
+  position: relative;
+  z-index: 1;
+}
+
+/* 左上顶部控件容器：退出 + 全屏并排
+ * ===== 根据用户需求改动：默认不显示（opacity 0 + pointer-events none，防止拖动时误点）
+ * 鼠标移入 now-playing 时再淡入；鼠标长时间不动时再次淡出（由 hide-controls 控制）。
+ * isolation:isolate 建立独立层叠上下文 + 超高 z-index，保证不会被 np-body 覆盖。*/
+.np-top-controls {
+  position: absolute !important;
+  top: 16px;
+  left: 16px;
+  z-index: 2147483600 !important; /* 碾压一切内部嵌套层 */
+  isolation: isolate !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* ===== 规则：默认隐藏（opacity 0，禁用点透），
+   * 只在两个条件任意满足时出现：
+   *   1. .now-playing 正在被鼠标 hover（即用户刚移进来）
+   *   2. .now-playing 没有加 .hide-controls 类（空闲未超时）
+   * 也就是：.hide-controls 时即便是 hover now-playing 也淡出顶部按钮，符合"鼠标长时间不动→消失" */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  transform: translateY(-4px);
+}
+.now-playing:not(.hide-controls) .np-top-controls,
+.now-playing:hover .np-top-controls {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+/* ===== 空闲超时时：顶部按钮彻底淡出（哪怕现在鼠标刚好在 now-playing 上，也不显示）
+ * 覆盖上面的 hover 规则，体现"长时间不动就要消失"的意愿。*/
+.now-playing.hide-controls .np-top-controls {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-8px);
+}
+.now-playing .np-exit-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.2s;
+}
+.now-playing .np-exit-btn:hover { background: rgba(255, 255, 255, 0.24); }
+
+/* ===== 右上角窗口控件：复刻主顶栏三按钮，全屏态下提供退出全屏路径 =====
+ * 与 np-top-controls 同步显隐规则（默认隐藏，hover now-playing 或非 hide-controls 时出现）
+ * 解决「播放页全屏后只能从左上角退出」的 bug：现在右上角也有窗口控件。*/
+.np-window-controls {
+  position: absolute !important;
+  top: 12px;
+  right: 8px;
+  z-index: 2147483600 !important;
+  isolation: isolate !important;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  transform: translateY(-4px);
+}
+.now-playing:not(.hide-controls) .np-window-controls,
+.now-playing:hover .np-window-controls {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.now-playing.hide-controls .np-window-controls {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-8px);
+}
+.now-playing .np-win-btn {
+  width: 36px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.15s;
+}
+.now-playing .np-win-btn:hover { background: rgba(255, 255, 255, 0.18); }
+.now-playing .np-win-close:hover { background: #e81123; color: #fff; }
+
+/* 主体两栏 */
+.np-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 64px;
+  padding: 32px 64px;
+  min-height: 0;
+}
+.np-left { display: flex; flex-direction: column; align-items: center; gap: 24px; max-width: 380px; }
+.np-cover-wrap {
+  width: 320px;
+  height: 320px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.6);
+  background: #222;
+}
+.np-cover { width: 100%; height: 100%; object-fit: cover; display: block; }
+.np-info { text-align: center; max-width: 100%; }
+.np-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 360px;
+}
+.np-artist {
+  font-size: 14px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+}
+/* 播放页歌手链接：暗色背景下用白色系，可点击跳转歌手页 */
+.np-artist .np-artist-link {
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.np-artist .np-artist-link:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+.np-artist .np-artist-sep {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 右侧弧形歌词：用 mask 实现上下淡出，整体透视模拟弧形 */
+.np-right {
+  flex: 1;
+  max-width: 620px;
+  height: 64vh;
+  max-height: 680px;
+  position: relative;
+  perspective: 1000px;
+  /* 歌词更靠右：增加左 margin 把它推到右侧 */
+  margin-left: 40px;
+}
+.np-lyric, .np-lyric-empty {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  text-align: center;
+  padding: 40% 0;
+  scroll-behavior: smooth;
+  /* 弧形效果：transform 让中间行保持水平，上下行带轻微旋转模拟弧度 */
+  transform-style: preserve-3d;
+  /* 上下淡出 */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 30%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 30%, #000 70%, transparent 100%);
+}
+.np-lyric-empty { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.4); font-size: 16px; }
+.np-lyric-empty.hidden { display: none; }
+.np-lyric::-webkit-scrollbar { display: none; }
+.np-lyric-line {
+  font-size: 22px;
+  line-height: 2.2;
+  color: rgba(255, 255, 255, 0.35);
+  transition: color 0.3s, transform 0.3s, font-size 0.3s, background 0.2s;
+  padding: 0 24px;
+  transform-origin: center;
+  border-radius: 6px;
+}
+.np-lyric-line:not(.translation):hover {
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+}
+.np-lyric-line.active {
+  /* 歌词随封面主色变化：与白色混合保证在暗背景上可读 */
+  color: color-mix(in srgb, var(--np-c1, #ffffff) 75%, #ffffff);
+  text-shadow: 0 1px 8px rgba(0,0,0,0.35), 0 0 20px color-mix(in srgb, var(--np-c1, #ffffff) 60%, transparent);
+  font-size: 26px;
+  font-weight: 600;
+  transform: scale(1.05);
+  filter: brightness(1.3);
+}
+.np-lyric-line.translation {
+  font-size: 16px;
+  opacity: 0.7;
+  line-height: 1.8;
+}
+/* 翻译行在所属主行高亮时同步高亮（不再只是 muted） */
+.np-lyric-line.translation.active {
+  color: color-mix(in srgb, var(--np-c1, #ffffff) 88%, #ffffff);
+  opacity: 1;
+  font-weight: 500;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--np-c1, #ffffff) 45%, transparent);
+  filter: brightness(1.25);
+}
+/* 隐藏翻译：由右下角翻译切换按钮控制 */
+.np-lyric.hide-translations .np-lyric-line.translation {
+  display: none;
+}
+
+/* 翻译显示/隐藏切换按钮：固定在底部控件上方右侧 */
+.now-playing .np-translation-toggle {
+  position: absolute;
+  right: 24px;
+  bottom: 140px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--np-c1, #ffffff) 35%, transparent);
+  background: color-mix(in srgb, var(--np-c1, #ffffff) 14%, rgba(0,0,0,0.25));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 1;
+  transform: translateY(0);
+  transition: background 0.2s, border-color 0.2s, opacity 0.3s ease, transform 0.3s ease;
+}
+.np-translation-toggle:hover {
+  background: color-mix(in srgb, var(--np-c1, #ffffff) 24%, rgba(0,0,0,0.25));
+}
+.np-translation-toggle:active { transform: scale(0.96); }
+.np-translation-toggle.off { opacity: 0.5; }
+/* 鼠标静止超时（.hide-controls）：翻译按钮跟随底栏一起下滚渐变消失 */
+.now-playing.hide-controls .np-translation-toggle {
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
+}
+.np-translation-toggle svg,
+.np-translation-toggle i { width: 16px; height: 16px; }
+
+/* 逐字歌词：未唱到的词暗淡，已唱到的词高亮为封面主色 */
+.np-yrc-word {
+  color: rgba(255, 255, 255, 0.35);
+  transition: color 0.15s;
+}
+.np-yrc-word.sung {
+  /* 已唱词随封面主色 */
+  color: color-mix(in srgb, var(--np-c1, #ffffff) 80%, #ffffff);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.3);
+}
+/* 逐字模式下 active 行不需要额外缩放，靠逐字高亮体现节奏 */
+.np-lyric-line.active .np-yrc-word {
+  /* 活跃行的未唱词也稍微亮一点 */
+  color: color-mix(in srgb, var(--np-c1, #ffffff) 40%, rgba(255,255,255,0.45));
+}
+.np-lyric-line.active .np-yrc-word.sung {
+  color: color-mix(in srgb, var(--np-c1, #ffffff) 80%, #ffffff);
+}
+
+/* 底部控件：===== 根据用户需求：空闲不动时自动「下滚 + 淡出」消失，
+ * 鼠标移动时再「上滑 + 淡入」出现。position:relative + z-index:2 仍然保留，避免被 np-body 覆盖。*/
+.np-controls {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  padding: 16px 48px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: linear-gradient(to top, rgba(0,0,0,0.65), transparent);
+  /* 正常态：完全可见 */
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  /* 过渡：下滚 0.35s ease 出去 + 渐隐 */
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
+}
+/* ===== 鼠标静止超时：隐藏鼠标光标，鼠标动起来（移除 hide-controls）才恢复 =====
+ * 与控件隐藏同步：控件消失时光标也消失，营造纯净沉浸的歌词全屏体验。
+ * 注意：cursor:none 必须配合 idle 监听里的 showControls()，否则鼠标真不动了无法触发 mousemove。
+ * 这里依赖 _onActivity/mousemove 回调里的 showControls() 移除 hide-controls → 光标恢复。*/
+.now-playing.hide-controls {
+  cursor: none;
+}
+.now-playing.hide-controls * {
+  cursor: none !important;
+}
+
+/* ===== 空闲超时时（加 .hide-controls）：下滚渐变消失 =====
+ * 注意：translateY(100%) 在 flex 子元素下相对于自身高度，正好"整体滑出"视口。*/
+.now-playing.hide-controls .np-controls {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(calc(100% + 32px)); /* 再多滑出一点 padding，避免露渐变黑边 */
+}
+.np-progress-row { display: flex; align-items: center; gap: 12px; }
+.np-seek { flex: 1; height: 4px; border-radius: 9999px; overflow: hidden; cursor: pointer; }
+.np-seek-fill { height: 100%; width: 0%; border-radius: 9999px; }
+.np-time { font-size: 11px; color: rgba(255,255,255,0.6); min-width: 36px; font-variant-numeric: tabular-nums; }
+/* 底栏爱心按钮：已喜欢时变红填充 */
+#btn-like.is-liked { color: #ff4d6d; }
+#btn-like.is-liked svg { fill: #ff4d6d; color: #ff4d6d; }
+
+/* 按钮布局：播放暂停居中，其余按钮以它为基准对称分布 */
+.np-buttons {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+}
+.np-buttons-left {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-right: 16px;
+}
+.np-buttons-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+.np-buttons-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 16px;
+}
+.np-btn {
+  background: none; border: none; cursor: pointer; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  transition: background 0.2s;
+}
+.np-btn:hover { background: rgba(255,255,255,0.1); }
+.np-play-btn { width: 56px; height: 56px; background: #fff; color: #000; }
+.np-play-btn:hover { background: rgba(255,255,255,0.9); }
+/* 喜欢按钮：已喜欢时变红填充 */
+.np-like-btn.is-liked { color: #ff4d6d; }
+.np-like-btn.is-liked svg { fill: #ff4d6d; }
+.np-volume { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.7); }
+.np-volume-bar { width: 100px; height: 4px; cursor: pointer; border-radius: 4px; overflow: hidden; }
+.np-volume-fill { height: 100%; width: 0%; border-radius: 4px; }
+
+/* 底栏封面：点击拉出全屏播放页 */
+.now-cover { cursor: pointer; }
+.now-cover:hover { opacity: 0.85; }
+
+#view {
+  /* 始终预留滚动条空间，避免有/无滚动条时内容宽度跳动（如账号设置页选项卡栏） */
+  scrollbar-gutter: stable;
+  /* 为子页内 absolute 遮罩（如心动模式换一批加载遮罩）提供定位上下文 */
+  position: relative;
+}
+#view::-webkit-scrollbar { width: 8px; }
+#view::-webkit-scrollbar-thumb { background: color-mix(in srgb, #000000 15%, transparent); border-radius: 8px; }
+#view::-webkit-scrollbar-track { background: transparent; }
+
+[data-lucide] { display: inline-flex; align-items: center; justify-content: center; }
+
+/* 路由激活态 */
+.nav-item[data-active="true"] {
+  background-color: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.nav-item[data-active="true"] i[data-lucide] { color: var(--primary); }
+.nav-item[data-active="true"] span { color: var(--primary) !important; }
+
+/* 加载骨架 */
+.skeleton {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--muted) 50%, transparent) 0%,
+    color-mix(in srgb, var(--muted) 80%, transparent) 50%,
+    color-mix(in srgb, var(--muted) 50%, transparent) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 4rem 2rem; gap: 0.75rem;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 6rem; left: 50%; transform: translateX(-50%);
+  padding: 0.5rem 1rem; border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--foreground) 90%, transparent);
+  color: var(--background);
+  font-size: 0.875rem;
+  z-index: 100;
+  animation: toast-in 0.2s ease-out;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* 模态遮罩 */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  background: color-mix(in srgb, var(--background-900) 50%, transparent);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  animation: backdrop-in 0.15s ease-out;
+}
+@keyframes backdrop-in {
+  from { opacity: 0; } to { opacity: 1; }
+}
+
+.modal-card {
+  width: min(380px, 90vw); padding: 1.75rem; border-radius: 1.25rem;
+  background: var(--background-50);
+  border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+  box-shadow: var(--shadow-2xl), 0 0 0 1px color-mix(in srgb, var(--foreground) 3%, transparent);
+  animation: modal-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 行 hover */
+.track-row:hover { background: color-mix(in srgb, var(--foreground) 5%, transparent); }
+.track-row[data-current="true"] {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.track-row[data-current="true"] .track-name { color: var(--primary); }
+
+/* 列头排序：歌曲 / 歌手 / 专辑 / 时长 可点击 + 箭头指示 */
+.sortable-th { transition: color 0.12s ease, background 0.12s ease; }
+.sortable-th:hover { color: var(--foreground) !important; }
+.sortable-th .th-sort {
+  display: inline-flex; flex-direction: column; align-items: center;
+  margin-left: 4px; vertical-align: middle; font-size: 9px; line-height: 1;
+  color: color-mix(in srgb, var(--muted-foreground) 70%, transparent);
+  gap: 1px;
+  transition: color 0.12s ease;
+}
+.sortable-th .th-sort-up { opacity: 0.45; }
+.sortable-th .th-sort-down { opacity: 0.45; }
+.sortable-th .th-sort.is-active.is-asc .th-sort-up { opacity: 1; color: var(--primary); }
+.sortable-th .th-sort.is-active.is-desc .th-sort-down { opacity: 1; color: var(--primary); }
+.sortable-th:hover .th-sort .th-sort-up,
+.sortable-th:hover .th-sort .th-sort-down { opacity: 0.7; }
+.sortable-th:hover .th-sort.is-active.is-asc .th-sort-up { opacity: 1; }
+.sortable-th:hover .th-sort.is-active.is-desc .th-sort-down { opacity: 1; }
+
+/* 歌单卡片 */
+.playlist-card {
+  border-radius: 1rem; overflow: hidden; cursor: pointer;
+  background: color-mix(in srgb, var(--background-50) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--background-300) 60%, transparent);
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+.playlist-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============ 路由转场动画：页面上滚淡出 / 下滚淡入 ============ */
+/* 退出动画：当前页面向上滚动并淡出（时长随 --anim-mult 调节） */
+#view.route-anim-out-up {
+  animation: routeOutUp calc(0.22s * var(--anim-mult, 1)) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+/* 进入动画：新页面从下方滚入并淡入 */
+#view.route-anim-in-up {
+  animation: routeInUp calc(0.28s * var(--anim-mult, 1)) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+/* 反向：当前页面向下滚动并淡出 */
+#view.route-anim-out-down {
+  animation: routeOutDown calc(0.22s * var(--anim-mult, 1)) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+#view.route-anim-in-down {
+  animation: routeInDown calc(0.28s * var(--anim-mult, 1)) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes routeOutUp {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-56px); }
+}
+@keyframes routeInUp {
+  from { opacity: 0; transform: translateY(56px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes routeOutDown {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(56px); }
+}
+@keyframes routeInDown {
+  from { opacity: 0; transform: translateY(-56px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ 侧栏：收缩时保持圆角、未展开时更透明 ============ */
+/* aside 自身也要带圆角，否则 overflow:hidden 会把 nav 的 border-top-right-radius 裁成直角 */
+.sidebar-zone {
+  border-top-right-radius: 24px;
+  border-bottom-right-radius: 24px;
+}
+/* 收缩态：背景更透明；展开态：背景更不透明（覆盖 nav 自身的 inline 背景色，hover 时加深） */
+.sidebar-zone #sidebar-nav {
+  background-color: color-mix(in srgb, #ffffff 18%, transparent);
+  transition: background-color 0.18s ease-out;
+}
+.sidebar-zone:hover #sidebar-nav {
+  background-color: color-mix(in srgb, #ffffff 55%, transparent);
+}
+
+/* ============ 修复：我的歌单始终展开无法回缩 bug ============ */
+/* 原因：Tailwind group-hover:max-h-60 控制展开，但 group-hover 状态在某些情况下
+   没有正确移除，导致 max-h-60 一直生效无法回缩。
+   现改为显式 CSS 规则 + 用户手动折叠：
+   - 侧栏未 hover → max-height:0（折叠）
+   - 侧栏 hover 且未手动折叠 → max-height:240px（展开）
+   - 用户点击「我的歌单」标题手动折叠 → 加 .collapsed class，强制 max-height:0*/
+.sidebar-zone #user-playlists {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out;
+}
+.sidebar-zone:hover #user-playlists:not(.collapsed) {
+  max-height: 240px;
+}
+.sidebar-zone #user-playlists.collapsed {
+  max-height: 0 !important;
+}
+/* chevron 旋转动画：
+ * - 默认（展开，列表可见）：箭头朝下 (rotate 0)
+ * - 收起（.collapsed）：箭头朝右 (rotate -90deg)
+ * 加 transition 让切换有旋转动画（之前缺失过渡，箭头瞬间跳变）*/
+#my-playlists-chevron {
+  transform: rotate(0deg);
+  /* 同时保留 opacity 过渡（hover 显隐）和 transform 过渡（折叠旋转）*/
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+#my-playlists-chevron.rotated {
+  transform: rotate(-90deg);
+}
+
+/* ============ 搜索下拉框 ============ */
+/* 下拉容器：绝对定位在搜索框下方，z-index 高过侧栏但低于模态 */
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  z-index: 60;
+  max-height: 420px;
+  overflow-y: auto;
+  border-radius: 1rem;
+  background-color: color-mix(in srgb, #ffffff 92%, transparent);
+  backdrop-filter: blur(20px);
+  border: 1px solid color-mix(in srgb, #ffffff 60%, transparent);
+  box-shadow: 0 12px 32px -8px rgba(0,0,0,0.18);
+  /* 进入动画：从上方淡入并轻微下滚 */
+  animation: search-dropdown-in calc(0.18s * var(--anim-mult, 1)) cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top center;
+}
+/* 关闭动画：与出现刚好相反 —— 上移距离与入场下移距离一致 */
+.search-dropdown.closing {
+  animation: search-dropdown-out calc(0.18s * var(--anim-mult, 1)) cubic-bezier(0.4, 0, 1, 1) forwards !important;
+}
+@keyframes search-dropdown-in {
+  from { opacity: 0; transform: translateY(-10px) scaleY(0.94); }
+  to   { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+/* 退场 = 入场的反向：从 (0, 1, 1) 到 (-10px, 0.94, 0) */
+@keyframes search-dropdown-out {
+  from { opacity: 1; transform: translateY(0) scaleY(1); }
+  to   { opacity: 0; transform: translateY(-10px) scaleY(0.94); }
+}
+.search-dropdown.hidden { display: none; }
+.search-dropdown::-webkit-scrollbar { width: 6px; }
+.search-dropdown::-webkit-scrollbar-thumb { background: color-mix(in srgb, #000000 12%, transparent); border-radius: 6px; }
+
+.search-section { padding: 0.5rem 0.5rem 0.25rem; }
+.search-section + .search-section {
+  border-top: 1px solid color-mix(in srgb, #000000 6%, transparent);
+  margin-top: 0.25rem;
+}
+.search-section-title {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.25rem 0.75rem 0.5rem;
+  font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.search-section-title button {
+  font-size: 0.7rem; font-weight: 400; text-transform: none; letter-spacing: 0;
+  color: var(--muted-foreground); background: transparent; border: 0; cursor: pointer;
+  padding: 0.125rem 0.375rem; border-radius: 0.375rem;
+}
+.search-section-title button:hover { background: color-mix(in srgb, #000000 5%, transparent); }
+
+/* 历史条目 / 建议条目：可点击，hover 高亮 */
+.search-item {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.12s ease-out;
+  color: var(--foreground);
+}
+.search-item:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.search-item .si-icon { color: var(--muted-foreground); flex-shrink: 0; }
+.search-item .si-text { flex: 1; min-width: 0; }
+.search-item .si-name { font-size: 0.875rem; truncate; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-item .si-meta { font-size: 0.7rem; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-item .si-rm {
+  flex-shrink: 0; opacity: 0; transition: opacity 0.12s ease-out;
+  background: transparent; border: 0; cursor: pointer; color: var(--muted-foreground);
+  padding: 0.125rem 0.25rem; border-radius: 0.375rem;
+}
+.search-item:hover .si-rm { opacity: 1; }
+.search-item .si-rm:hover { background: color-mix(in srgb, #000000 6%, transparent); color: var(--destructive); }
+
+/* ============ 右键上下文菜单 ============ */
+/* 与搜索下拉框风格一致：圆角 + 毛玻璃 + 向下滚动淡入 */
+.context-menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 200px;
+  max-width: 280px;
+  border-radius: 0.75rem;
+  background-color: color-mix(in srgb, #ffffff 92%, transparent);
+  backdrop-filter: blur(20px);
+  border: 1px solid color-mix(in srgb, #ffffff 60%, transparent);
+  box-shadow: 0 12px 32px -8px rgba(0,0,0,0.2);
+  padding: 0.375rem;
+  transform-origin: top center;
+  animation: ctx-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ctx-in {
+  from { opacity: 0; transform: translateY(-6px) scaleY(0.96); }
+  to   { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+.context-menu.hidden { display: none; }
+.context-menu-item {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background 0.12s ease-out;
+}
+.context-menu-item:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.context-menu-item i { color: var(--muted-foreground); flex-shrink: 0; }
+.context-menu-item.danger { color: var(--destructive); }
+.context-menu-item.danger:hover { background: color-mix(in srgb, var(--destructive) 8%, transparent); }
+.context-menu-item.danger i { color: var(--destructive); }
+.context-menu-separator {
+  height: 1px; margin: 0.25rem 0.5rem;
+  background: color-mix(in srgb, #000000 8%, transparent);
+}
+.context-menu-subheader {
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: 0.7rem; font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+/* 收藏夹子列表：点击可展开 */
+.context-menu-playlists { max-height: 220px; overflow-y: auto; }
+.context-menu-playlists .context-menu-item { font-size: 0.8rem; }
+.context-menu-playlists::-webkit-scrollbar { width: 6px; }
+.context-menu-playlists::-webkit-scrollbar-thumb { background: color-mix(in srgb, #000000 12%, transparent); border-radius: 6px; }
+/* 历史条目按 tag 排版：靠左，可以塞多个 */
+.search-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; padding: 0.25rem 0.5rem 0.5rem; }
+.search-tag {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+  cursor: pointer;
+  transition: background 0.12s ease-out;
+}
+.search-tag:hover { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.search-tag .si-rm { margin-left: 0.125rem; }
+
+/* ============ 背景图加载遮罩 ============ */
+.bg-loading-mask {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--background) 75%, transparent);
+  backdrop-filter: blur(4px);
+  color: var(--foreground);
+  animation: bg-loading-in 0.18s ease-out;
+}
+@keyframes bg-loading-in { from { opacity: 0; } to { opacity: 1; } }
+.bg-loading-mask.hidden { display: none; }
+.bg-loading-spinner {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  border-top-color: var(--primary);
+  animation: bg-loading-spin 0.8s linear infinite;
+}
+@keyframes bg-loading-spin { to { transform: rotate(360deg); } }
+.bg-loading-text { margin-top: 0.75rem; font-size: 0.875rem; color: var(--muted-foreground); }
+
+/* ============ 心动模式加载提示（仅中间转圈+文字，无背景遮罩）============
+ * 用户要求：删掉遮罩背景，只保留中间的转圈提示。
+ * 关键修复：首次进入时 #view 内容为空（contentHeight=0），用 absolute top:50% 会定位到 0px，
+ * 因此改用 position: fixed + 50vh/vw 视口居中，保证始终出现在屏幕中央。
+ * pointer-events:none 确保不会拦截任何点击。*/
+.heartbeat-loading-mask {
+  position: fixed;
+  top: 50vh; left: 50vw;
+  transform: translate(-50%, -50%);
+  z-index: 120;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: transparent;
+  color: var(--foreground);
+  pointer-events: none;
+}
+.heartbeat-loading-mask.hidden { display: none; }
+.heartbeat-loading-spinner {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  border-top-color: var(--primary);
+  animation: heartbeat-loading-spin 0.8s linear infinite;
+}
+@keyframes heartbeat-loading-spin { to { transform: rotate(360deg); } }
+.heartbeat-loading-text { margin-top: 0.625rem; font-size: 0.8125rem; color: var(--muted-foreground); }
+
+/* ============ 设置页：调试日志面板 ============ */
+.debug-log-list {
+  max-height: 420px;
+  overflow-y: auto;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  background: color-mix(in srgb, #000000 3%, transparent);
+}
+.debug-log-list::-webkit-scrollbar { width: 6px; }
+.debug-log-list::-webkit-scrollbar-thumb { background: color-mix(in srgb, #000000 20%, transparent); border-radius: 6px; }
+.debug-log-row {
+  display: grid;
+  grid-template-columns: 92px 168px 1fr;
+  gap: 8px;
+  padding: 3px 10px;
+  border-bottom: 1px solid color-mix(in srgb, #000000 4%, transparent);
+  align-items: baseline;
+  word-break: break-word;
+}
+.debug-log-row:nth-child(even) { background: color-mix(in srgb, #000000 1.5%, transparent); }
+.debug-log-row.suspicious {
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border-left: 3px solid #f59e0b;
+  padding-left: 7px;
+}
+.debug-log-ts { color: var(--muted-foreground); white-space: nowrap; }
+.debug-log-src {
+  color: var(--primary);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.debug-log-row.suspicious .debug-log-src { color: #b45309; }
+.debug-log-data { color: var(--foreground); white-space: pre-wrap; }
+.debug-log-row.suspicious .debug-log-data { color: #92400e; }
+.debug-log-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* ============ 设置页：选项卡 + 行布局 ============ */
+.settings-tabs {
+  display: flex; gap: 0.25rem;
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #ffffff 60%, transparent);
+  border: 1px solid color-mix(in srgb, #ffffff 60%, transparent);
+  position: relative;
+}
+.settings-tab {
+  flex: 1; padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem; font-weight: 500;
+  color: var(--muted-foreground);
+  background: transparent;
+  border: 0; cursor: pointer;
+  transition: color 0.15s ease-out;
+  position: relative;
+  z-index: 1;
+}
+.settings-tab[data-active="true"] {
+  color: var(--primary);
+  font-weight: 600;
+}
+.settings-tab:not([data-active="true"]):hover {
+  color: var(--foreground);
+}
+/* 滑动高亮条：位于底部，通过 JS 设置 left/width，CSS 过渡实现滑动效果 */
+.settings-tab-slider {
+  position: absolute;
+  bottom: 2px;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: left calc(0.22s * var(--anim-mult, 1)) cubic-bezier(0.22, 1, 0.36, 1),
+              width calc(0.22s * var(--anim-mult, 1)) cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 2;
+}
+/* 内容区从上往下滚动进入 */
+@keyframes settingsContentIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.settings-content-anim {
+  animation: settingsContentIn calc(0.25s * var(--anim-mult, 1)) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 设置卡片：白底带边框 */
+.settings-card {
+  border-radius: 1rem; overflow: hidden;
+  background: color-mix(in srgb, #ffffff 72%, transparent);
+  border: 1px solid color-mix(in srgb, #ffffff 60%, transparent);
+}
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem;
+}
+.settings-row + .settings-row {
+  border-top: 1px solid color-mix(in srgb, #000000 8%, transparent);
+}
+.settings-row-label { display: flex; flex-direction: column; gap: 0.25rem; max-width: 60%; }
+.settings-row-title { font-size: 0.875rem; font-weight: 500; color: var(--foreground); }
+.settings-row-hint { font-size: 0.75rem; color: var(--muted-foreground); }
+.settings-row-control { display: flex; align-items: center; gap: 0.5rem; }
+
+/* 通用 toggle 开关（与原 tray-toggle 同款） */
+.toggle-track { width: 2.75rem; height: 1.5rem; border-radius: 9999px; transition: background-color 0.2s ease-out; }
+.toggle-thumb { position: absolute; left: 0.125rem; top: 0.125rem; width: 1.25rem; height: 1.25rem; background: #fff; border-radius: 9999px; transition: transform 0.2s ease-out; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+
+/* 快捷键按钮：等宽字体、最小宽度避免抖动 */
+.hotkey-btn {
+  padding: 0.4rem 0.875rem; min-width: 9rem;
+  border-radius: 0.5rem;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.8rem;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  color: var(--primary);
+  cursor: pointer;
+  transition: background 0.12s ease-out;
+}
+.hotkey-btn:hover { background: color-mix(in srgb, var(--primary) 16%, transparent); }
+.hotkey-btn[data-recording="true"] {
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+/* 账号卡片：头像 + 名称 + 会员标 */
+.account-card {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1.5rem;
+}
+.account-avatar {
+  width: 4rem; height: 4rem; border-radius: 50%;
+  background: var(--secondary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: 600; color: var(--secondary-foreground);
+  overflow: hidden;
+}
+.account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.account-info { flex: 1; min-width: 0; }
+.account-name { font-size: 1.125rem; font-weight: 600; color: var(--foreground); }
+.account-meta { font-size: 0.8rem; color: var(--muted-foreground); margin-top: 0.25rem; }
+.vip-badge {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0.125rem 0.5rem; border-radius: 9999px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #1a1a1a; font-size: 0.7rem; font-weight: 700;
+}
+.vip-badge.none {
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  color: var(--muted-foreground);
+}
+.logout-btn {
+  padding: 0.5rem 1rem; border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--destructive) 30%, transparent);
+  color: var(--destructive); font-size: 0.8rem; cursor: pointer;
+}
+.logout-btn:hover { background: color-mix(in srgb, var(--destructive) 18%, transparent); }
+
+/* 字体选择卡片：点击进入「字体选择页面」 */
+.font-picker {
+  border-radius: 0.75rem; overflow: hidden;
+  background: color-mix(in srgb, #ffffff 60%, transparent);
+  border: 1px solid color-mix(in srgb, #ffffff 60%, transparent);
+}
+.font-card {
+  padding: 1rem 1.25rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  transition: background 0.12s ease-out;
+}
+.font-card:hover { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.font-card[data-selected="true"] {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+.font-card + .font-card {
+  border-top: 1px solid color-mix(in srgb, #000000 6%, transparent);
+}
+.font-name { font-size: 0.9rem; color: var(--foreground); }
+
+/* ============ MV 播放页 ============ */
+.mv-player-wrap { position: relative; }
+.mv-player {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  box-shadow: 0 30px 80px -30px rgba(0, 20, 60, 0.45),
+              0 10px 30px -10px rgba(0, 0, 0, 0.25);
+  transition: border-radius 0.2s ease;
+}
+.mv-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000;
+  object-fit: contain;
+}
+
+/* 中央大播放按钮（未开始时显示） */
+.mv-center-play {
+  background: rgba(0,0,0,0.18);
+  transition: opacity 0.25s ease, background 0.2s ease;
+  z-index: 5;
+}
+.mv-center-play:hover { background: rgba(0,0,0,0.32); }
+.mv-center-play-btn {
+  width: 96px;
+  height: 96px;
+  background: rgba(0, 122, 255, 0.92);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 12px 40px -10px rgba(0, 122, 255, 0.6),
+              0 2px 10px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.mv-center-play:hover .mv-center-play-btn {
+  transform: scale(1.05);
+  background: rgba(0, 140, 255, 0.98);
+}
+.mv-center-play:active .mv-center-play-btn { transform: scale(0.97); }
+
+/* 底部控制栏 */
+.mv-controls {
+  z-index: 6;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0) 100%);
+  color: #fff;
+  padding-top: 48px;
+}
+
+/* 进度条 */
+.mv-progress-row { display: flex; align-items: center; gap: 12px; }
+.mv-seek {
+  position: relative;
+  height: 6px;
+  transition: height 0.15s ease;
+}
+.mv-player:hover .mv-seek { height: 8px; }
+.mv-seek-fill {
+  position: absolute;
+  left: 0; top: 0;
+  z-index: 2;
+  transition: background 0.15s ease;
+}
+.mv-seek-buffered {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: rgba(255,255,255,0.25);
+  z-index: 1;
+  width: 0%;
+}
+.mv-time {
+  min-width: 40px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* 通用按钮 */
+.mv-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: rgba(255,255,255,0.1);
+  transition: background 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+}
+.mv-btn:hover { background: rgba(255,255,255,0.2); }
+.mv-btn:active { transform: scale(0.95); }
+.mv-rate-btn {
+  width: auto;
+  padding: 0 14px;
+  border-radius: 10px;
+  letter-spacing: 0.02em;
+}
+.mv-rate-popup {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  min-width: 92px;
+  background: rgba(20, 22, 28, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 6px;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+  z-index: 20;
+}
+.mv-rate-popup.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.mv-rate-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 13px;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.mv-rate-item:hover { background: rgba(255,255,255,0.1); }
+.mv-rate-item.active {
+  background: rgba(0, 122, 255, 0.25);
+  color: #8ec6ff;
+  font-weight: 600;
+}
+
+/* 音量条 */
+.mv-volume-bar { position: relative; transition: width 0.2s ease; }
+.mv-volume-bar:hover { width: 90px; }
+.mv-volume-fill { transition: background 0.15s ease; }
+
+/* 加载转圈 */
+.mv-loading {
+  z-index: 4;
+  background: rgba(0,0,0,0.2);
+}
+.mv-loading.hidden { display: none; }
+.mv-loading-spinner {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.2);
+  border-top-color: rgba(0, 122, 255, 0.95);
+  animation: mv-spin 0.9s linear infinite;
+  box-shadow: 0 0 30px rgba(0, 122, 255, 0.35);
+}
+@keyframes mv-spin { to { transform: rotate(360deg); } }
+
+/* 无权限/无法播放提示：保证按钮颜色足够清晰 */
+.tl-empty-action { margin-top: 1.5rem; }
+.font-sample { font-size: 0.8rem; color: var(--muted-foreground); }

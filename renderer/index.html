@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BcsMusic</title>
+  <!-- 复用 Pinguo 设计令牌（与原静态页保持视觉一致） -->
+  <link rel="stylesheet" href="./colors_and_type.css">
+  <!-- Tailwind CDN（v4 浏览器构建）+ Lucide 图标 -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+  <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+  <style type="text/tailwindcss">
+    @theme inline {
+      --color-background: var(--background);
+      --color-foreground: var(--foreground);
+      --color-card: var(--card);
+      --color-card-foreground: var(--card-foreground);
+      --color-popover: var(--popover);
+      --color-popover-foreground: var(--popover-foreground);
+      --color-primary: var(--primary);
+      --color-primary-foreground: var(--primary-foreground);
+      --color-secondary: var(--secondary);
+      --color-secondary-foreground: var(--secondary-foreground);
+      --color-muted: var(--muted);
+      --color-muted-foreground: var(--muted-foreground);
+      --color-accent: var(--accent);
+      --color-accent-foreground: var(--accent-foreground);
+      --color-destructive: var(--destructive);
+      --color-destructive-foreground: var(--destructive-foreground);
+      --color-border: var(--border);
+      --color-input: var(--input);
+      --color-ring: var(--ring);
+      --radius-sm: var(--radius-sm);
+      --radius-md: var(--radius-md);
+      --radius-lg: var(--radius-lg);
+      --radius-xl: var(--radius-xl);
+    }
+    @layer base {
+      body { background: var(--background); color: var(--foreground); }
+    }
+  </style>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="min-h-screen font-sans antialiased overflow-hidden">
+  <!-- 背景层：app.js 根据设置注入图片或保留默认渐变 -->
+  <div id="bg-layer" class="fixed inset-0 -z-10" style="background:linear-gradient(to top right, #e0f2fe 0%, #fffbf0 100%);">
+    <div id="bg-image" class="absolute inset-0 hidden"></div>
+  </div>
+
+  <!-- 背景图加载遮罩：选择图片 / 应用背景时显示居中转圈 -->
+  <div id="bg-loading-mask" class="bg-loading-mask hidden">
+    <div class="bg-loading-spinner"></div>
+    <div class="bg-loading-text">正在加载背景…</div>
+  </div>
+
+  <!-- 顶栏 -->
+  <header class="fixed top-0 left-0 right-0 h-14 z-50 flex items-center justify-between px-4 app-header">
+    <div class="flex items-center gap-2">
+      <img src="../main/icon.png" alt="BcsMusic" class="w-9 h-9 rounded-xl" style="object-fit:cover;">
+      <span class="text-lg font-semibold tracking-tight" style="color:var(--foreground);">[BcsMusic]</span>
+    </div>
+    <div class="flex items-center" style="margin-left:0.5rem;">
+      <button id="nav-back" class="p-2 rounded-full hover:bg-black/5 transition-colors" aria-label="返回上一级" title="返回上一级" style="visibility:hidden;opacity:0;transition:opacity 0.2s ease;">
+        <i data-lucide="arrow-left" class="w-4 h-4" style="color:var(--foreground);"></i>
+      </button>
+    </div>
+
+    <div class="hidden md:flex items-center flex-1 justify-center px-8">
+        <div class="search-wrap relative w-full max-w-md">
+          <div class="flex items-center gap-2 w-full h-9 px-3 rounded-full" style="background-color:color-mix(in srgb, #ffffff 70%, transparent); border:1px solid color-mix(in srgb, #ffffff 75%, transparent);">
+            <i data-lucide="search" class="w-4 h-4" style="color:var(--muted-foreground);"></i>
+            <input id="search-input" type="text" placeholder="搜索音乐、歌手、专辑" class="flex-1 bg-transparent border-0 outline-none text-sm" style="color:var(--foreground);" aria-label="搜索" autocomplete="off">
+            <button id="search-clear" class="p-1 rounded-full hover:opacity-80 transition-opacity hidden" aria-label="清除">
+              <i data-lucide="x" class="w-3 h-3" style="color:var(--muted-foreground);"></i>
+            </button>
+          </div>
+          <!-- 搜索下拉：聚焦时显示历史；输入时显示建议+历史 -->
+          <div id="search-dropdown" class="search-dropdown hidden"></div>
+        </div>
+      </div>
+
+    <div class="flex items-center gap-3">
+      <button id="user-chip" class="flex items-center gap-2 pr-3 cursor-pointer hover:opacity-80 transition-opacity" style="border-right:1px solid color-mix(in srgb, #000000 10%, transparent);" aria-label="账号">
+        <div id="user-avatar" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold" style="background:var(--secondary); color:var(--secondary-foreground);">U</div>
+        <span id="user-name" class="hidden lg:inline text-sm" style="color:var(--foreground);">未登录</span>
+      </button>
+      <button id="btn-settings" class="p-2 rounded-full hover:bg-black/5 transition-colors" aria-label="设置" title="设置"><i data-lucide="settings" class="w-4 h-4" style="color:var(--muted-foreground);"></i></button>
+      <button id="btn-messages" class="p-2 rounded-full hover:bg-black/5 transition-colors relative" aria-label="信息" title="信息"><i data-lucide="mail" class="w-4 h-4" style="color:var(--muted-foreground);"></i><span id="msg-badge" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full" style="background:var(--destructive);"></span></button>
+      <div class="hidden sm:flex items-center gap-1 pl-2" style="border-left:1px solid color-mix(in srgb, #000000 10%, transparent);">
+        <button id="win-min" class="p-2 rounded-full hover:bg-black/5 transition-colors" aria-label="最小化"><i data-lucide="minus" class="w-4 h-4" style="color:var(--foreground);"></i></button>
+        <button id="win-max" class="p-2 rounded-full hover:bg-black/5 transition-colors" aria-label="最大化"><i data-lucide="maximize" class="w-4 h-4" style="color:var(--foreground);"></i></button>
+        <button id="win-close" class="p-2 rounded-full hover:bg-black/5 transition-colors" aria-label="关闭"><i data-lucide="x" class="w-4 h-4" style="color:var(--foreground);"></i></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 侧栏 -->
+  <aside id="sidebar" class="sidebar-zone fixed top-14 left-0 z-40 w-16 hover:w-44 transition-all duration-150 ease-out group overflow-hidden" style="bottom:88px;">
+    <nav id="sidebar-nav" class="w-44 h-full flex flex-col py-3" style="backdrop-filter:blur(20px); border-right:1px solid color-mix(in srgb, #ffffff 55%, transparent); border-top-right-radius:24px; border-bottom-right-radius:24px;">
+      <a href="#/favorites" data-route="favorites" class="nav-item flex items-center gap-3 h-11 px-4 mx-2 rounded-lg hover:bg-black/5 transition-colors">
+        <i data-lucide="heart" class="w-5 h-5 flex-shrink-0" style="color:var(--foreground);"></i>
+        <span class="whitespace-nowrap text-sm opacity-0 group-hover:opacity-100 transition-opacity" style="color:var(--foreground);">我喜欢的音乐</span>
+      </a>
+      <a href="#/daily" data-route="daily" class="nav-item flex items-center gap-3 h-11 px-4 mx-2 rounded-lg hover:bg-black/5 transition-colors">
+        <i data-lucide="sparkles" class="w-5 h-5 flex-shrink-0" style="color:var(--foreground);"></i>
+        <span class="whitespace-nowrap text-sm opacity-0 group-hover:opacity-100 transition-opacity" style="color:var(--foreground);">每日音乐推荐</span>
+      </a>
+      <a href="#/heartbeat" data-route="heartbeat" class="nav-item flex items-center gap-3 h-11 px-4 mx-2 rounded-lg hover:bg-black/5 transition-colors">
+        <i data-lucide="heart-pulse" class="w-5 h-5 flex-shrink-0" style="color:var(--foreground);"></i>
+        <span class="whitespace-nowrap text-sm opacity-0 group-hover:opacity-100 transition-opacity" style="color:var(--foreground);">心动模式</span>
+      </a>
+      <a href="#/albums" data-route="albums" class="nav-item flex items-center gap-3 h-11 px-4 mx-2 rounded-lg hover:bg-black/5 transition-colors">
+        <i data-lucide="disc-3" class="w-5 h-5 flex-shrink-0" style="color:var(--foreground);"></i>
+        <span class="whitespace-nowrap text-sm opacity-0 group-hover:opacity-100 transition-opacity" style="color:var(--foreground);">专辑</span>
+      </a>
+      <a href="#/recent" data-route="recent" class="nav-item flex items-center gap-3 h-11 px-4 mx-2 rounded-lg hover:bg-black/5 transition-colors">
+        <i data-lucide="history" class="w-5 h-5 flex-shrink-0" style="color:var(--foreground);"></i>
+        <span class="whitespace-nowrap text-sm opacity-0 group-hover:opacity-100 transition-opacity" style="color:var(--foreground);">最近播放</span>
+      </a>
+      <div class="mx-2">
+        <div id="my-playlists-toggle" class="flex items-center gap-3 h-11 px-4 rounded-lg hover:bg-black/5 transition-colors cursor-pointer select-none">
+          <i data-lucide="folder-heart" class="w-5 h-5 flex-shrink-0" style="color:var(--foreground);"></i>
+          <span class="whitespace-nowrap text-sm opacity-0 group-hover:opacity-100 transition-opacity" style="color:var(--foreground);">我的歌单</span>
+          <i id="my-playlists-chevron" data-lucide="chevron-down" class="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" style="color:var(--muted-foreground);"></i>
+        </div>
+        <div id="user-playlists" class="flex flex-col pl-11 max-h-0 overflow-hidden transition-all duration-200">
+          <!-- 由 JS 注入用户歌单 -->
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- 主视图挂载点 -->
+  <main id="view" class="ml-16 mt-14 mb-28 min-h-0 overflow-auto" style="height:calc(100vh - 56px - 88px - 16px);"></main>
+
+  <!-- 底栏播放器 -->
+  <footer id="player-bar" class="fixed bottom-4 left-4 right-4 h-16 z-50 flex items-center justify-between px-4 rounded-2xl" style="background-color:color-mix(in srgb, #ffffff 55%, transparent); backdrop-filter:blur(20px); border:1px solid color-mix(in srgb, #ffffff 60%, transparent); box-shadow:var(--shadow-lg);">
+    <div class="flex items-center gap-3 w-1/4 min-w-0">
+      <div id="now-cover" class="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center" style="background:linear-gradient(135deg, var(--brand-300), var(--brand-500));"></div>
+      <div class="min-w-0">
+        <div id="now-title" class="truncate text-sm font-medium" style="color:var(--muted-foreground);">未在播放</div>
+        <div id="now-artist" class="truncate text-xs" style="color:var(--muted-foreground);">—</div>
+      </div>
+      <button id="btn-like" class="p-1.5 rounded-full hover:bg-black/5 transition-colors" aria-label="喜欢" disabled><i data-lucide="heart" class="w-4 h-4" style="color:var(--muted-foreground);"></i></button>
+    </div>
+
+    <div class="flex flex-col items-center flex-1 max-w-xl gap-1">
+      <div class="flex items-center gap-5">
+        <button id="btn-prev" class="p-1.5 rounded-full hover:bg-black/5 transition-colors" aria-label="上一首"><i data-lucide="skip-back" class="w-5 h-5" style="color:var(--foreground);"></i></button>
+        <button id="btn-play" class="w-9 h-9 rounded-full flex items-center justify-center hover:opacity-90 transition-opacity" style="background:var(--primary);" aria-label="播放/暂停"><i data-lucide="play" class="w-5 h-5" style="color:var(--primary-foreground);"></i></button>
+        <button id="btn-next" class="p-1.5 rounded-full hover:bg-black/5 transition-colors" aria-label="下一首"><i data-lucide="skip-forward" class="w-5 h-5" style="color:var(--foreground);"></i></button>
+        <button id="btn-mode" class="p-1.5 rounded-full hover:bg-black/5 transition-colors" aria-label="播放模式" title="顺序播放"><i data-lucide="list" class="w-4 h-4" style="color:var(--muted-foreground);"></i></button>
+      </div>
+      <div class="flex items-center gap-2 w-full text-xs" style="color:var(--muted-foreground);">
+        <span id="time-cur" class="font-variant-numeric">0:00</span>
+        <div id="seek" class="flex-1 h-1 rounded-full overflow-hidden cursor-pointer seek-bar">
+          <div id="seek-fill" class="h-full rounded-full seek-fill"></div>
+        </div>
+        <span id="time-dur" class="font-variant-numeric">0:00</span>
+      </div>
+    </div>
+
+    <div class="hidden sm:flex items-center gap-2 w-1/4 justify-end">
+      <button id="btn-playlist" class="p-1.5 rounded-full hover:bg-black/5 transition-colors" aria-label="播放列表" title="播放列表"><i data-lucide="list-music" class="w-4 h-4" style="color:var(--muted-foreground);"></i></button>
+      <i data-lucide="volume-2" class="w-4 h-4" style="color:var(--muted-foreground);"></i>
+      <div id="volume" class="w-20 h-1 rounded-full overflow-hidden cursor-pointer volume-bar">
+        <div id="volume-fill" class="h-full rounded-full volume-fill"></div>
+      </div>
+    </div>
+
+  <!-- 共享 audio 元素 -->
+  <audio id="audio" preload="metadata" crossorigin="anonymous"></audio>
+</footer>
+
+  <!-- 全屏播放页：点击底栏封面拉出（必须在 footer 外，避免 backdrop-filter 影响 fixed 定位） -->
+  <div id="now-playing" class="now-playing hidden">
+    <!-- 流动颜色背景层：nowplaying.js 从封面提取主色并注入 CSS 变量 -->
+    <div id="np-bg" class="np-bg" aria-hidden="true">
+      <div class="np-bg-blob np-bg-blob-1"></div>
+      <div class="np-bg-blob np-bg-blob-2"></div>
+      <div class="np-bg-blob np-bg-blob-3"></div>
+      <div class="np-bg-overlay"></div>
+    </div>
+
+    <!-- 左上角退出按钮：默认隐藏，鼠标移上去显示 -->
+    <div class="np-top-controls">
+      <button id="np-exit" class="np-exit-btn" aria-label="退出播放页" title="退出播放页">
+        <i data-lucide="chevron-down" class="w-5 h-5"></i>
+      </button>
+      <button id="np-fullscreen" class="np-exit-btn" aria-label="全屏" title="全屏">
+        <i data-lucide="expand" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- 右上角窗口控件：复刻主顶栏三按钮，全屏态下点「最大化」即可退出全屏 -->
+    <!-- 与 np-top-controls 同步显隐（默认隐藏，鼠标移入 now-playing 才出现）-->
+    <div class="np-window-controls" data-no-drag>
+      <button id="np-win-min" class="np-win-btn" aria-label="最小化" title="最小化">
+        <i data-lucide="minus" class="w-4 h-4"></i>
+      </button>
+      <button id="np-win-max" class="np-win-btn" aria-label="最大化 / 退出全屏" title="最大化 / 退出全屏">
+        <i data-lucide="maximize" class="w-4 h-4"></i>
+      </button>
+      <button id="np-win-close" class="np-win-btn np-win-close" aria-label="关闭" title="关闭">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- 主体：左封面信息 + 右歌词 -->
+    <div class="np-body">
+      <!-- 左侧：封面 / 歌名 / 歌手 -->
+      <div class="np-left">
+        <div class="np-cover-wrap">
+          <img id="np-cover" class="np-cover" alt="">
+        </div>
+        <div class="np-info">
+          <h2 id="np-title" class="np-title"></h2>
+          <p id="np-artist" class="np-artist"></p>
+        </div>
+      </div>
+
+      <!-- 右侧：弧形滚动歌词 -->
+      <div class="np-right">
+        <div id="np-lyric" class="np-lyric"></div>
+        <div class="np-lyric-empty hidden" id="np-lyric-empty">暂无歌词</div>
+      </div>
+    </div>
+
+    <!-- 翻译显示/隐藏切换按钮：定位在底部控件上方右侧 -->
+    <button id="np-translation-toggle" class="np-translation-toggle" title="显示/隐藏翻译">
+      <i data-lucide="languages" class="w-4 h-4"></i>
+      <span>翻译</span>
+    </button>
+
+    <!-- 底部控件：与底栏相似，鼠标离开自动隐藏 -->
+    <div class="np-controls" id="np-controls">
+      <div class="np-progress-row">
+        <span id="np-time-cur" class="np-time">0:00</span>
+        <div id="np-seek" class="np-seek seek-bar">
+          <div id="np-seek-fill" class="np-seek-fill seek-fill"></div>
+        </div>
+        <span id="np-time-dur" class="np-time">0:00</span>
+      </div>
+      <div class="np-buttons">
+        <!-- 左：爱心 + 播放模式 -->
+        <div class="np-buttons-left">
+          <button id="np-like" class="np-btn np-like-btn" aria-label="喜欢" title="添加到我喜欢的音乐"><i data-lucide="heart" class="w-5 h-5"></i></button>
+          <button id="np-mode" class="np-btn" aria-label="播放模式" title="顺序播放"><i data-lucide="list" class="w-4 h-4"></i></button>
+        </div>
+        <!-- 中：上一首 + 喜欢→改为播放/暂停居中 -->
+        <div class="np-buttons-center">
+          <button id="np-prev" class="np-btn" aria-label="上一首"><i data-lucide="skip-back" class="w-5 h-5"></i></button>
+          <button id="np-play" class="np-btn np-play-btn" aria-label="播放/暂停"><i data-lucide="play" class="w-6 h-6"></i></button>
+          <button id="np-next" class="np-btn" aria-label="下一首"><i data-lucide="skip-forward" class="w-5 h-5"></i></button>
+        </div>
+        <!-- 右：播放列表 + 音量 -->
+        <div class="np-buttons-right">
+          <button id="np-playlist" class="np-btn" aria-label="播放列表" title="播放列表"><i data-lucide="list-music" class="w-4 h-4"></i></button>
+          <div class="np-volume">
+            <i data-lucide="volume-2" class="w-4 h-4"></i>
+            <div id="np-volume" class="np-volume-bar volume-bar">
+              <div id="np-volume-fill" class="np-volume-fill volume-fill"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 播放列表面板：必须放在 now-playing 之后，z-index 才能高过它 -->
+  <div id="queue-panel" class="queue-panel hidden">
+    <div class="flex items-center justify-between px-4 h-10" style="border-bottom:1px solid color-mix(in srgb, #000000 8%, transparent);">
+      <span class="text-xs font-medium" style="color:var(--foreground);">播放列表 <span class="queue-count" style="color:var(--muted-foreground);">0</span></span>
+      <button id="queue-clear" class="text-xs p-1 rounded hover:bg-black/5" style="color:var(--muted-foreground);" title="清空">清空</button>
+    </div>
+    <div class="queue-next-section hidden">
+      <div class="queue-next-header flex items-center justify-between px-4 h-8" style="border-bottom:1px solid color-mix(in srgb, #000000 8%, transparent);">
+        <span class="text-xs font-medium" style="color:var(--primary);">下一首播放 <span class="queue-next-count" style="color:var(--muted-foreground);">0</span></span>
+        <button id="queue-next-clear" class="text-xs p-1 rounded hover:bg-black/5" style="color:var(--muted-foreground);" title="清空下一首播放">清空</button>
+      </div>
+      <div class="queue-next-list p-2" style="max-height:200px;overflow-y:auto;"></div>
+    </div>
+    <div class="queue-list flex-1 overflow-y-auto p-2" style="max-height:360px;"></div>
+  </div>
+
+  <!-- 登录模态容器 -->
+  <div id="modal-root"></div>
+
+  <!-- 信息中心面板：下滚出 + 淡入，与搜索框风格一致 -->
+  <div id="messages-panel" class="messages-panel hidden"></div>
+
+  <!-- 右键上下文菜单：动态注入内容 -->
+  <div id="context-menu" class="context-menu hidden"></div>
+
+  <!-- 工具库：轻量拼音首字母表（供列头「首字母正/倒序」排序，无 npm 依赖）-->
+  <script src="./vendor/firstPinyin.js"></script>
+  <!-- SPA：player/auth/ui/views 先加载（plain script，同步初始化），app.js 作为 module 入口 -->
+  <script src="./player.js"></script>
+  <script src="./nowplaying.js"></script>
+  <script src="./auth.js"></script>
+  <script src="./ui/tracklist.js"></script>
+  <script src="./ui/playlistGrid.js"></script>
+  <script src="./ui/contextMenu.js"></script>
+  <script src="./ui/messages.js"></script>
+  <script src="./views/favorites.js"></script>
+  <script src="./views/daily.js"></script>
+  <script src="./views/heartbeat.js"></script>
+  <script src="./views/albums.js"></script>
+  <script src="./views/recent.js"></script>
+  <script src="./views/playlist.js"></script>
+  <script src="./views/artist.js"></script>
+  <script src="./views/album.js"></script>
+  <script src="./views/search.js"></script>
+  <script src="./views/settings.js"></script>
+  <script src="./views/mv.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+{
+  "name": "bcsmusic",
+  "version": "0.1.0",
+  "description": "BcsMusic - 网易云音乐桌面客户端（Windows 原生 SMTC 集成）",
+  "main": "main/index.js",
+  "author": "BcsMusic",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging",
+    "dev:watch": "electron . --enable-logging --remote-debugging-port=9222",
+    "build:smtc": "cargo build --release --manifest-path smtc-native/Cargo.toml",
+    "build": "npm run build:smtc && chcp 65001 >nul 2>&1 & electron-builder --win",
+    "build:dir": "npm run build:smtc && chcp 65001 >nul 2>&1 & electron-builder --win --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.bcsmusic.app",
+    "productName": "BcsMusic",
+    "copyright": "Copyright © 2026 BcsMusic",
+    "icon": "build/icon.png",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main/**/*",
+      "preload/**/*",
+      "renderer/**/*",
+      "package.json",
+      "!**/*.map",
+      "!**/.*"
+    ],
+    "asarUnpack": [
+      "node_modules/NeteaseCloudMusicApi/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "smtc-native/target/release/bcs-smtc.exe",
+        "to": "bcs-smtc/bcs-smtc.exe",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "zip", "arch": ["x64"] }
+      ],
+      "artifactName": "BcsMusic-${version}-${arch}.${ext}",
+      "publisherName": "BcsMusic",
+      "verifyUpdateCodeSignature": false,
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BcsMusic"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "NeteaseCloudMusicApi": "^4.27.0"
+  }
+}

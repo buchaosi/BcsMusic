@@ -1,0 +1,55 @@
+[package]
+name = "bcs-smtc"
+version = "0.1.0"
+edition = "2021"
+description = "BcsMusic Windows 原生 SMTC 桥（替代 Chromium MediaSession，封面无下采样限制）"
+
+[[bin]]
+name = "bcs-smtc"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[dependencies.windows]
+version = "0.57"
+features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_System_WinRT",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Environment",
+  "Win32_Storage_EnhancedStorage",
+  "Win32_Graphics_Gdi",
+  "Foundation",
+  "Foundation_Collections",
+  "Media",
+  "Storage",
+  "Storage_Streams",
+  "implement",
+]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# windows-core 必须显式列出，供 #[interface] / #[implement] 宏引用 windows_core 路径
+windows-core = "0.57"
+
+# 构建 exe 版本资源（FileDescription、ProductName），让 Windows 资源管理器和
+# SMTC 显示「BcsMusic」而不是「bcs-smtc.exe」
+[build-dependencies]
+winres = "0.1"
+
+[package.metadata.winres]
+FileDescription = "BcsMusic SMTC Helper"
+ProductName = "BcsMusic"
+OriginalFilename = "bcs-smtc.exe"
+LegalCopyright = "Copyright © 2026 BcsMusic"
