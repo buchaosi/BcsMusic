@@ -14,7 +14,10 @@
 ## 📸 软件截图
 
 <!-- 请在此处插入软件截图 -->
-![软件截图](./screenshots/screenshot1.png)
+![软件截图](screenshots/screenshot1.png)
+![软件截图](screenshots/screenshot2.png)
+![软件截图](screenshots/screenshot3.png)
+
 
 <!-- 如需更多截图，可继续添加 -->
 <!-- ![功能展示](./screenshots/screenshot2.png) -->
